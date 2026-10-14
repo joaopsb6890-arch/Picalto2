@@ -2,13 +2,10 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "builds": [
     { "src": "api/**/*", "use": "@vercel/node" },
-    { "src": "public/**/*", "use": "@vercel/static" }
+    { "src": "index.html", "use": "@vercel/static" }
   ],
   "rewrites": [
     { "source": "/api/picalai/status", "destination": "/api/picalai" },
     { "source": "/api/picalai/chat", "destination": "/api/picalai" }
-  ],
-  "headers": [
-    { "source": "/api/(.*)", "headers": [{ "key": "Access-Control-Allow-Origin", "value": "*" }] }
   ]
 }
