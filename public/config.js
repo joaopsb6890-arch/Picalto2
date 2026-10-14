@@ -4,7 +4,7 @@
    Preenche os dois valores abaixo. */
 
 var CLOUDINARY_CLOUD_NAME = 'dwnteeamx';
-var CLOUDINARY_UNSIGNED_PRESET = '34d03fb691f5ff128fdf5d6a4f8251';
+var CLOUDINARY_UNSIGNED_PRESET = 'picalto';
 
 /* ---------- Storage seguro (persistente com fallback em memória) ----------
    Em iframes sandboxed, a persistência do browser pode estar indisponível.
