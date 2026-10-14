@@ -1,13 +1,13 @@
-/* Vercel serverless function — PicalAi proxy
- * Replaces server.js for the AI proxy on Vercel (where a plain Node server cannot run).
+/* PicalAi proxy — Vercel Serverless Function (Node runtime)
  *
- * Env vars (set in Vercel → Project → Settings → Environment Variables):
- *   OVERCONTROL_API_KEY    — required
- *   OVERCONTROL_BASE_URL   — required, e.g. https://api.overcontrolgroup.com/v1
- *   OVERCONTROL_MODEL      — required, e.g. lume-3.5
- *   FIREBASE_PROJECT_ID    — required (defaults to picala-a212f)
+ * File path: /api/picalai.js  → served at URL /api/picalai
  *
- * The browser calls /api/picalai/* on the same origin — no key ever reaches the client.
+ * This file handles BOTH /api/picalai/status (GET) and /api/picalai/chat (POST)
+ * depending on the query/body, because Vercel maps one file per URL segment.
+ * Vercel maps /api/<filename> — a file "picalai.js" handles /api/picalai.
+ * For /api/picalai/status and /api/picalai/chat, Vercel's default is to treat
+ * nested paths as separate files; we instead use ONE file and branch on path.
+ * (Vercel supports dynamic segments via [name].js — simpler to branch here.)
  */
 'use strict';
 
@@ -17,24 +17,19 @@ const AI_MAX_USER_TOKENS = 1200;
 const RATE_WINDOW_MS = 60_000;
 const RATE_MAX = 15;
 
-function json(status, obj) {
-  return new Response(JSON.stringify(obj), {
-    status,
-    headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' },
-  });
+function json(res, status, obj) {
+  res.status(status).json(obj);
 }
 
-function aiConfigured(env) {
-  return !!(env.OVERCONTROL_API_KEY && env.OVERCONTROL_BASE_URL && env.OVERCONTROL_MODEL);
+function aiConfigured() {
+  return !!(process.env.OVERCONTROL_API_KEY && process.env.OVERCONTROL_BASE_URL && process.env.OVERCONTROL_MODEL);
 }
 
-/* Verify the Firebase ID token against the project using the public Google API. */
-async function verifyFirebaseToken(token, env) {
+async function verifyFirebaseToken(token) {
   if (!token) return null;
   try {
-    const key = env.FIREBASE_API_KEY || 'AIzaSyDtSLwYJDiL-1AOnwLDh-jxOQzG1xsDsHs';
-    const url = `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${encodeURIComponent(key)}`;
-    const r = await fetch(url, {
+    const key = process.env.FIREBASE_API_KEY || 'AIzaSyDtSLwYJDiL-1AOnwLDh-jxOQzG1xsDsHs';
+    const r = await fetch('https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=' + key, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ idToken: token }),
@@ -49,7 +44,6 @@ async function verifyFirebaseToken(token, env) {
   }
 }
 
-/* Global rate limiting (per-instance on Vercel — good enough to throttle abuse). */
 const rateBuckets = new Map();
 function rateAllow(key) {
   const now = Date.now();
@@ -73,13 +67,13 @@ function picalaiSystemPrompt(userName) {
   ].filter(Boolean).join(' ');
 }
 
-async function callAi(messages, userName, env) {
-  const base = env.OVERCONTROL_BASE_URL.replace(/\/+$/, '');
+async function callAi(messages, userName) {
+  const base = process.env.OVERCONTROL_BASE_URL.replace(/\/+$/, '');
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
   try {
     const payload = {
-      model: env.OVERCONTROL_MODEL,
+      model: process.env.OVERCONTROL_MODEL,
       messages: [
         { role: 'system', content: picalaiSystemPrompt(userName) },
         ...messages.slice(-AI_MAX_MESSAGES),
@@ -91,7 +85,7 @@ async function callAi(messages, userName, env) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: 'Bearer ' + env.OVERCONTROL_API_KEY,
+        Authorization: 'Bearer ' + process.env.OVERCONTROL_API_KEY,
       },
       body: JSON.stringify(payload),
       signal: controller.signal,
@@ -122,65 +116,61 @@ async function callAi(messages, userName, env) {
   }
 }
 
-async function handle(req, env) {
-  const url = new URL(req.url);
-  const firebaseToken = (req.headers.get('X-Firebase-Token') || '').trim();
+/* Vercel Node handler */
+export default async function handler(req, res) {
+  try {
+    const path = req.url || '';
+    const firebaseToken = (req.headers['x-firebase-token'] || '').trim();
 
-  if (url.pathname === '/api/picalai/status' && req.method === 'GET') {
-    return json(200, {
-      configured: aiConfigured(env),
-      model: aiConfigured(env) ? env.OVERCONTROL_MODEL : null,
-    });
-  }
-
-  if (url.pathname === '/api/picalai/chat' && req.method === 'POST') {
-    const fbUser = await verifyFirebaseToken(firebaseToken, env);
-    if (!fbUser) {
-      return json(401, { error: 'unauthorized', message: 'Precisas de estar autenticado para falar com a PicalAi.' });
-    }
-    if (!aiConfigured(env)) {
-      return json(503, {
-        error: 'not_configured',
-        message: 'O PicalAi não está configurado. Define OVERCONTROL_API_KEY, OVERCONTROL_BASE_URL e OVERCONTROL_MODEL no Vercel.',
+    // /api/picalai/status (GET) — public (only reveals configured yes/no)
+    if (path.startsWith('/api/picalai/status') && req.method === 'GET') {
+      return json(res, 200, {
+        configured: aiConfigured(),
+        model: aiConfigured() ? process.env.OVERCONTROL_MODEL : null,
       });
     }
-    if (!rateAllow('uid:' + fbUser.uid)) {
-      return json(429, { error: 'rate_limited', message: 'Demasiados pedidos. Espera um momento.' });
+
+    // /api/picalai/chat (POST)
+    if (path.startsWith('/api/picalai/chat') && req.method === 'POST') {
+      const fbUser = await verifyFirebaseToken(firebaseToken);
+      if (!fbUser) {
+        return json(res, 401, { error: 'unauthorized', message: 'Precisas de estar autenticado para falar com a PicalAi.' });
+      }
+      if (!aiConfigured()) {
+        return json(res, 503, {
+          error: 'not_configured',
+          message: 'O PicalAi não está configurado. Define OVERCONTROL_API_KEY, OVERCONTROL_BASE_URL e OVERCONTROL_MODEL no Vercel.',
+        });
+      }
+      if (!rateAllow('uid:' + fbUser.uid)) {
+        return json(res, 429, { error: 'rate_limited', message: 'Demasiados pedidos. Espera um momento.' });
+      }
+      let body = req.body;
+      if (!body || typeof body === 'string') {
+        try { body = JSON.parse(body || '{}'); } catch (e) { return json(res, 400, { error: 'bad_json', message: 'Corpo inválido.' }); }
+      }
+      if (!Array.isArray(body.messages) || !body.messages.length) {
+        return json(res, 400, { error: 'bad_request', message: 'Falta o histórico de mensagens.' });
+      }
+      const clean = body.messages
+        .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
+        .slice(-AI_MAX_MESSAGES)
+        .map((m) => ({ role: m.role, content: m.content.slice(0, 4000) }));
+      if (!clean.length) return json(res, 400, { error: 'bad_request', message: 'Mensagens inválidas.' });
+      const userName = typeof body.userName === 'string' ? body.userName.slice(0, 40) : (fbUser.name || '');
+      try {
+        const out = await callAi(clean, userName);
+        return json(res, 200, { reply: out.content });
+      } catch (e) {
+        const msg = (e && e.publicMsg) || 'Falha ao falar com a PicalAi. Tenta novamente.';
+        console.error('[Picalta][ai]', e && e.message);
+        return json(res, 502, { error: 'ai_error', message: msg });
+      }
     }
-    let body;
-    try {
-      body = await req.json();
-    } catch (e) {
-      return json(400, { error: 'bad_json', message: 'Corpo inválido.' });
-    }
-    if (!Array.isArray(body.messages) || !body.messages.length) {
-      return json(400, { error: 'bad_request', message: 'Falta o histórico de mensagens.' });
-    }
-    const clean = body.messages
-      .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
-      .slice(-AI_MAX_MESSAGES)
-      .map((m) => ({ role: m.role, content: m.content.slice(0, 4000) }));
-    if (!clean.length) return json(400, { error: 'bad_request', message: 'Mensagens inválidas.' });
-    const userName = typeof body.userName === 'string' ? body.userName.slice(0, 40) : (fbUser.name || '');
-    try {
-      const out = await callAi(clean, userName, env);
-      return json(200, { reply: out.content });
-    } catch (e) {
-      const msg = (e && e.publicMsg) || 'Falha ao falar com a PicalAi. Tenta novamente.';
-      console.error('[Picalta][ai]', e && e.message);
-      return json(502, { error: 'ai_error', message: msg });
-    }
+
+    return json(res, 404, { error: 'not_found', message: 'Rota não encontrada: ' + path });
+  } catch (e) {
+    console.error('[Picalta][server]', e && e.message);
+    return json(res, 500, { error: 'server', message: 'Erro interno.' });
   }
-
-  return json(404, { error: 'not_found' });
 }
-
-export default {
-  async fetch(req, env, ctx) {
-    try {
-      return await handle(req, env);
-    } catch (e) {
-      return json(500, { error: 'server', message: 'Erro interno.' });
-    }
-  },
-};

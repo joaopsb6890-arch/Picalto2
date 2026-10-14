@@ -1,51 +1,62 @@
-# Deploy no Vercel — Picalta v4
+# Deploy no Vercel — Picalta v4.1
 
-## 1. Subir para o Vercel
+## 1. Ficheiros que mudaram (se já fizeste upload, substitui estes)
 
-```bash
-# na raiz do projeto (pasta "picalta")
-npx vercel --prod
+```
+picalta/api/picalai.js      # reescrito: formato Vercel Node correto
+picalta/vercel.json          # reescrito: rewrites em vez de routes
+picalta/public/app.js        # +partilhar, +online, +busca hashtags
+picalta/public/index.html    # +campo busca hashtags
 ```
 
-O `vercel.json` já direciona `/api/*` para a função serverless e o resto para a pasta `public/`.
+## 2. Problema da IA — o que estava mal
 
-## 2. Variáveis de ambiente (Dashboard Vercel → Settings → Environment Variables)
+Antes: `api/picalai.js` usava `export default { async fetch(req, env, ctx) }` — formato Cloudflare Worker, não Vercel. O Vercel esperava `export default async function handler(req, res)`. Por isso a função carregava mas não respondia.
+
+Além disso `vercel.json` usava `routes` (legado) que podia conflitar. Agora usa `rewrites`.
+
+### Estrutura do ficheiro
+
+`api/picalai.js` é UM único ficheiro. O `vercel.json` mapeia:
+
+```
+/api/picalai/status  →  api/picalai.js  (GET)
+/api/picalai/chat    →  api/picalai.js  (POST)
+```
+
+## 3. Variáveis de ambiente (Dashboard Vercel → Settings → Environment Variables)
 
 | Nome | Valor |
 |---|---|
-| `OVERCONTROL_API_KEY` | a tua chave (recomendo criar uma nova — a antiga foi partilhada) |
+| `OVERCONTROL_API_KEY` | a tua chave |
 | `OVERCONTROL_BASE_URL` | `https://api.overcontrolgroup.com/v1` |
 | `OVERCONTROL_MODEL` | `lume-3.5` |
 | `FIREBASE_PROJECT_ID` | `picala-a212f` |
 
-## 3. Firebase Firestore
+## 4. Testar depois do deploy
 
-Atualiza as regras do Firestore com o novo `firestore.rules` (tem agora regras para `groups`):
+```bash
+curl https://teu-projeto.vercel.app/api/picalai/status
+# deve devolver {"configured":true,"model":"lume-3.5"}
+```
+
+Se devolver `configured: false`, falta uma variável de ambiente. Se devolver 404, o build não incluiu a pasta `api/`.
+
+## 5. Firestore
+
+Atualiza as regras:
 
 ```bash
 firebase deploy --only firestore:rules
 ```
 
-## 4. O que estava a falhar na IA
+## Novidades nesta versão
 
-O `server.js` não corre no Vercel — a app chamava `/api/picalai/*` e o Vercel respondia 404, daí o erro. A nova função `api/picalai.js` substitui esse servidor e funciona só como função serverless. A chave fica no ambiente do Vercel, nunca no browser.
-
-## Limitações
-
-- A verificação do token usa a API pública do Google (não Admin SDK).
-- O rate limiting da função é por instância (Vercel cria instâncias separadas) — é um throttle simples, não rígido.
-- Playlists guardam-se localmente (localStorage do dispositivo), não na nuvem.
-- O YouTube IFrame API exige que o player esteja visível para autoplay — ao sair da vista Música, o vídeo pausa.
-
-## Estrutura nova
-
-```
-picalta/
-├── api/picalai.js        # função serverless Vercel (proxy IA)
-├── vercel.json            # roteamento Vercel
-├── public/groups.js       # módulo Grupos
-├── public/index.html      # novas vistas + modais
-├── public/games.js        # +6 jogos novos
-├── public/music-player.js # playlists
-└── firestore.rules        # regras grupos
-```
+- **IA no Vercel** — corrigida para o formato Node handler do Vercel.
+- **Grupos** — criar, entrar/sair, membros, publicações.
+- **6 jogos novos** — Minesweeper, Breakout, Tetris, Pong, Campo Minado, 4 em Linha.
+- **Playlists** — criar, adicionar, tocar.
+- **Stories** — navegação ←/→ com auto-avanço.
+- **Partilhar post** — usa a API `navigator.share` nativa ou copia o link.
+- **Badge online** — heartbeat a cada 2 min, mostra "online" se o utilizador esteve ativo nos últimos 5 min.
+- **Busca de hashtags** — campo dedicado na vista Pesquisar.

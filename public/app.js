@@ -596,6 +596,9 @@ function renderFeed() {
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7.5-4.6-9.5-9C.9 8.6 2.6 5 6 5c2.2 0 3.6 1.2 4.5 2.5h3C14.4 6.2 15.8 5 18 5c3.4 0 5.1 3.6 3.5 7-2 4.4-9.5 9-9.5 9z" transform="translate(0 -1)"/></svg>
         </button>
         <span class="likes-count">${(p.likes || []).length} gostos</span>
+        <button class="icon-btn share-btn" data-share-post="${escapeHtml(p.id)}" aria-label="partilhar" style="margin-left:auto">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13"/></svg>
+        </button>
       </div>
       <div class="post-meta">
         ${caption}
@@ -1292,4 +1295,70 @@ try { soundsOn = PICALTA_STORAGE.getItem('picalta_sounds') !== '0'; $('#sound-to
       lastLikesByPost[p.id] = (p.likes || []).length;
     }
   }, 3000);
+})();
+
+/* ---------- Partilhar post (clipboard / share API) ---------- */
+document.addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-share-post]');
+  if (!btn) return;
+  e.preventDefault();
+  const postId = btn.dataset.sharePost;
+  const p = state.posts.find((x) => x.id === postId);
+  if (!p) return;
+  const url = location.origin + location.pathname + '#post-' + postId;
+  const u = state.usersCache[p.uid] || { username: '?' };
+  const text = `Vê este post de @${u.username || '?'} no Picalta!`;
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: 'Picalta', text, url });
+    } catch (err) { /* cancelado */ }
+  } else {
+    try {
+      await navigator.clipboard.writeText(text + ' ' + url);
+      toast('Link copiado!');
+    } catch (err) { toast(url); }
+  }
+});
+
+/* ---------- Online badge (heartbeat) ---------- */
+(function onlinePresence() {
+  // atualiza lastSeen do utilizador a cada 2 min — os outros vêem "online" se < 5 min
+  const KEY = 'picalta_lastseen_' + (state.me && state.me.uid);
+  function beat() {
+    if (!state.me || !state.profile) return;
+    const now = Date.now();
+    try { PICALTA_STORAGE.setItem(KEY, String(now)); } catch (e) {}
+    try {
+      if (typeof dbUpdateProfile === 'function') {
+        dbUpdateProfile(state.me.uid, { lastSeen: now }).catch(() => {});
+      }
+    } catch (e) {}
+  }
+  beat();
+  setInterval(beat, 120000);
+  window.PICALTA_IS_ONLINE = function (user) {
+    if (!user) return false;
+    const ms = typeof user.lastSeen === 'object' && user.lastSeen && user.lastSeen.toMillis ? user.lastSeen.toMillis() : (user.lastSeen || 0);
+    return ms && (Date.now() - ms < 5 * 60 * 1000);
+  };
+})();
+
+/* ---------- Busca de hashtags (campo dedicado) ---------- */
+(function hashtagSearch() {
+  const input = $('#hashtag-search-input');
+  if (!input) return;
+  let timer = null;
+  input.addEventListener('input', (e) => {
+    clearTimeout(timer);
+    const t = e.target.value.trim().replace(/^#/, '');
+    timer = setTimeout(() => {
+      const box = $('#hashtag-search-results');
+      if (!box) return;
+      if (!t) { box.innerHTML = ''; return; }
+      const tags = new Set();
+      for (const p of state.posts) for (const h of (p.hashtags || [])) if (h.toLowerCase().includes('#' + t.toLowerCase())) tags.add(h);
+      const arr = Array.from(tags).slice(0, 12);
+      box.innerHTML = arr.length ? arr.map((h) => `<button class="btn small ghost" data-hashtag="${escapeHtml(h.slice(1))}" style="margin:2px">${escapeHtml(h)}</button>`).join('') : '<div class="empty">Nenhuma hashtag encontrada.</div>';
+    }, 250);
+  });
 })();

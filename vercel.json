@@ -4,8 +4,8 @@
     { "src": "api/**/*", "use": "@vercel/node" },
     { "src": "public/**/*", "use": "@vercel/static" }
   ],
-  "routes": [
-    { "src": "/api/(.*)", "dest": "/api/$1" },
-    { "src": "/(.*)", "dest": "/public/$1" }
+  "rewrites": [
+    { "source": "/api/picalai/status", "destination": "/api/picalai" },
+    { "source": "/api/picalai/chat", "destination": "/api/picalai" }
   ]
 }
