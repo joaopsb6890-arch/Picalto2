@@ -1,17 +1,15 @@
-/* PicalAi proxy — Vercel Serverless Function (Node runtime)
+/* PicalAi proxy — Vercel Serverless Function (Node runtime, CommonJS)
  *
- * File path: /api/picalai.js  → served at URL /api/picalai
+ * Ficheiro: /api/picalai.js  → servido em /api/picalai
  *
- * This file handles BOTH /api/picalai/status (GET) and /api/picalai/chat (POST)
- * depending on the query/body, because Vercel maps one file per URL segment.
- * Vercel maps /api/<filename> — a file "picalai.js" handles /api/picalai.
- * For /api/picalai/status and /api/picalai/chat, Vercel's default is to treat
- * nested paths as separate files; we instead use ONE file and branch on path.
- * (Vercel supports dynamic segments via [name].js — simpler to branch here.)
+ * Este único ficheiro trata /api/picalai/status e /api/picalai/chat
+ * (o vercel.json faz o rewrite de ambos para /api/picalai).
+ * A escolha da ação é feita pelo MÉTODO HTTP (GET = estado, POST = chat),
+ * não pelo caminho, porque req.url pode variar com os rewrites.
  */
 'use strict';
 
-const AI_TIMEOUT_MS = 30000;
+const AI_TIMEOUT_MS = 25000; // < maxDuration (30s) do vercel.json
 const AI_MAX_MESSAGES = 24;
 const AI_MAX_USER_TOKENS = 1200;
 const RATE_WINDOW_MS = 60_000;
@@ -117,21 +115,21 @@ async function callAi(messages, userName) {
 }
 
 /* Vercel Node handler */
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   try {
     const path = req.url || '';
-    const firebaseToken = (req.headers['x-firebase-token'] || '').trim();
+    const firebaseToken = String(req.headers['x-firebase-token'] || '').trim();
 
-    // /api/picalai/status (GET) — public (only reveals configured yes/no)
-    if (path.startsWith('/api/picalai/status') && req.method === 'GET') {
+    // GET — estado (público: só revela configurado sim/não)
+    if (req.method === 'GET') {
       return json(res, 200, {
         configured: aiConfigured(),
         model: aiConfigured() ? process.env.OVERCONTROL_MODEL : null,
       });
     }
 
-    // /api/picalai/chat (POST)
-    if (path.startsWith('/api/picalai/chat') && req.method === 'POST') {
+    // POST — chat
+    if (req.method === 'POST') {
       const fbUser = await verifyFirebaseToken(firebaseToken);
       if (!fbUser) {
         return json(res, 401, { error: 'unauthorized', message: 'Precisas de estar autenticado para falar com a PicalAi.' });
@@ -168,9 +166,10 @@ export default async function handler(req, res) {
       }
     }
 
-    return json(res, 404, { error: 'not_found', message: 'Rota não encontrada: ' + path });
+    res.setHeader('Allow', 'GET, POST');
+    return json(res, 405, { error: 'method_not_allowed', message: 'Método não suportado: ' + req.method + ' ' + path });
   } catch (e) {
     console.error('[Picalta][server]', e && e.message);
     return json(res, 500, { error: 'server', message: 'Erro interno.' });
   }
-}
+};

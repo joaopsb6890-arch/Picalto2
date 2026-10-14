@@ -211,7 +211,7 @@ function enterApp() {
   // aviso se Cloudinary não estiver configurado
   if (!cloudinaryConfigured()) {
     const status = $('#firebase-status');
-    console.warn('[Picalta] Cloudinary não configurado — uploads de imagens desativados. Ver public/config.example.js.');
+    console.warn('[Picalta] Cloudinary não configurado — uploads de imagens desativados. Ver config.example.js.');
   }
 }
 
@@ -393,9 +393,14 @@ function renderNotifications() {
     <div class="notif-item"><b>${escapeHtml(n.text)}</b><span>${escapeHtml(n.when)}</span></div>
   `).join('');
 }
-$('#notif-btn').addEventListener('click', () => $('#notifications-panel').classList.add('open'));
-$('#close-notifs').addEventListener('click', () => $('#notifications-panel').classList.remove('open'));
-$('#tabbar-notif') && $('#tabbar-notif').addEventListener('click', () => $('#notifications-panel').classList.add('open'));
+function setNotifPanel(open) {
+  const p = $('#notifications-panel');
+  p.classList.toggle('open', !!open);
+  p.setAttribute('aria-hidden', open ? 'false' : 'true');
+}
+$('#notif-btn').addEventListener('click', () => setNotifPanel(true));
+$('#close-notifs').addEventListener('click', () => setNotifPanel(false));
+$('#tabbar-notif') && $('#tabbar-notif').addEventListener('click', () => setNotifPanel(true));
 $('#tabbar-logout') && $('#tabbar-logout').addEventListener('click', () => $('#logout-btn').click());
 
 /* ---------- menu "Mais" (mobile) ---------- */
@@ -412,7 +417,7 @@ function closeMoreSheet() {
 $('#tabbar-more') && $('#tabbar-more').addEventListener('click', openMoreSheet);
 $('#more-sheet-backdrop') && $('#more-sheet-backdrop').addEventListener('click', closeMoreSheet);
 $('#more-story-btn') && $('#more-story-btn').addEventListener('click', () => { closeMoreSheet(); $('#new-story-btn').click(); });
-$('#more-notif-btn') && $('#more-notif-btn').addEventListener('click', () => { closeMoreSheet(); $('#notifications-panel').classList.add('open'); });
+$('#more-notif-btn') && $('#more-notif-btn').addEventListener('click', () => { closeMoreSheet(); setNotifPanel(true); });
 $('#more-settings-btn') && $('#more-settings-btn').addEventListener('click', () => { closeMoreSheet(); navigate('settings'); renderSettings(); });
 $('#more-logout-btn') && $('#more-logout-btn').addEventListener('click', async () => { closeMoreSheet(); await fbSignOut(); location.reload(); });
 
@@ -1243,7 +1248,7 @@ function renderSettings() {
   if (status) {
     status.innerHTML = cloudinaryConfigured()
       ? '✅ Cloudinary configurado — uploads de imagens funcionais.'
-      : '⚠️ Cloudinary <b>não configurado</b>. Os uploads de imagens estão desativados até editares o ficheiro <code>public/config.js</code>. Passos: 1) cria conta em <a href="https://cloudinary.com" target="_blank">cloudinary.com</a> (grátis, sem cartão); 2) copia o Cloud Name do Dashboard; 3) Settings → Upload → Add upload preset → Unsigned → copia o nome; 4) cola os dois valores em <code>public/config.js</code>.';
+      : '⚠️ Cloudinary <b>não configurado</b>. Os uploads de imagens estão desativados até editares o ficheiro <code>config.js</code>. Passos: 1) cria conta em <a href="https://cloudinary.com" target="_blank">cloudinary.com</a> (grátis, sem cartão); 2) copia o Cloud Name do Dashboard; 3) Settings → Upload → Add upload preset → Unsigned → copia o nome; 4) cola os dois valores em <code>config.js</code>.';
   }
   if ($('#settings-email')) $('#settings-email').textContent = state.me.email || '—';
   if ($('#settings-level')) $('#settings-level').textContent = state.player.level || 1;

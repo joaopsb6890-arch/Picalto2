@@ -18,7 +18,7 @@ var __authFns = null;
 var __fsFns = null;
 var __stFns = null;
 
-/* Cloudinary config vem de public/config.js (carregado antes deste ficheiro) */
+/* Cloudinary config vem de config.js (carregado antes deste ficheiro) */
 function cloudinaryConfigured() {
   return !!(typeof CLOUDINARY_CLOUD_NAME !== 'undefined' && CLOUDINARY_CLOUD_NAME &&
             typeof CLOUDINARY_UNSIGNED_PRESET !== 'undefined' && CLOUDINARY_UNSIGNED_PRESET);
@@ -30,21 +30,21 @@ async function loadFirebaseModules() {
   if (typeof window !== 'undefined' && typeof window.__loadFirebaseModules === 'function') {
     return window.__loadFirebaseModules();
   }
-  const [authMod, fsMod, stMod] = await Promise.all([
+  const [authMod, fsMod, stMod, appMod] = await Promise.all([
     import('https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js'),
     import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js'),
     import('https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js'),
+    import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js'),
   ]);
-  return [authMod, fsMod, stMod];
+  return [authMod, fsMod, stMod, appMod];
 }
 
 async function initFirebase() {
-  const [authMod, fsMod, stMod] = await loadFirebaseModules();
+  const [authMod, fsMod, stMod, appMod] = await loadFirebaseModules();
   __authFns = authMod;
   __fsFns = fsMod;
   __stFns = stMod;
-  const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js');
-  const app = initializeApp(firebaseConfig);
+  const app = appMod.initializeApp(firebaseConfig);
   // Auth: popupRedirectResolver explícito (necessário para Google popup/redirect).
   // Tenta persistência local; se indisponível (iframes sandboxed), cai para memória.
   const initAuth = (persistence) => authMod.initializeAuth(app, {

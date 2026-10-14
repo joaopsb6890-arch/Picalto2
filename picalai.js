@@ -1,4 +1,4 @@
-/* Picalta — PicalAi: assistente de IA via proxy do servidor (server.js)
+/* Picalta — PicalAi: assistente de IA via função serverless da Vercel (api/picalai.js)
  * O browser nunca vê a chave da IA — apenas chama /api/picalai/* no mesmo servidor.
  * Requer um token Firebase (header X-Firebase-Token) — o servidor valida.
  */
@@ -34,9 +34,9 @@
   }
 
   /* ---------- API base (funciona local e no preview via proxy) ---------- */
-  // '__PORT_8000__' é substituído por 'port/8000' no deploy; em local dev é localhost:8000
-  const API_BASE = (typeof __PICALTA_API_BASE !== 'undefined') ? __PICALTA_API_BASE :
-    ('__PORT_8000__'.startsWith('__') ? '' : '__PORT_8000__');
+  // Mesmo domínio por defeito. Para apontar a outro servidor, define
+  // window.__PICALTA_API_BASE = 'https://...' antes de carregar este script.
+  const API_BASE = (typeof window.__PICALTA_API_BASE === 'string') ? window.__PICALTA_API_BASE : '';
   function apiUrl(path) { return API_BASE + path; }
 
   async function refreshStatus() {

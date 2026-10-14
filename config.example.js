@@ -1,5 +1,5 @@
 /* Exemplo de configuração para o armazenamento de imagens (Cloudinary).
-   Copia este ficheiro para public/config.js e preenche os teus valores.
+   Copia este ficheiro para config.js (na raiz do projeto, ao lado do index.html) e preenche os teus valores.
    Não alteres nada mais; é só isto. */
 
 /* Cloudinary: cria uma conta gratuita em https://cloudinary.com (sem cartão).

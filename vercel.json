@@ -1,9 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "builds": [
-    { "src": "api/**/*", "use": "@vercel/node" },
-    { "src": "index.html", "use": "@vercel/static" }
-  ],
+  "functions": {
+    "api/picalai.js": { "maxDuration": 30 }
+  },
   "rewrites": [
     { "source": "/api/picalai/status", "destination": "/api/picalai" },
     { "source": "/api/picalai/chat", "destination": "/api/picalai" }

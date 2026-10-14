@@ -163,11 +163,7 @@ async function dbUpdateProfile(uid, fields) {
 }
 
 /* ---------- Cloudinary (upload de imagens, plano gratuito sem cartão) ----------
-   Config vem de public/config.js. */
-function cloudinaryConfigured() {
-  return !!(typeof CLOUDINARY_CLOUD_NAME !== 'undefined' && CLOUDINARY_CLOUD_NAME &&
-            typeof CLOUDINARY_UNSIGNED_PRESET !== 'undefined' && CLOUDINARY_UNSIGNED_PRESET);
-}
+   Config vem de config.js; cloudinaryConfigured() está definida em firebase.js. */
 async function cdnUploadImage(uid, file, folder) {
   if (!cloudinaryConfigured()) {
     throw new Error('Armazenamento de imagens não configurado. Pede ao dono da app para configurar o Cloudinary (ver config.example.js).');
