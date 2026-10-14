@@ -681,6 +681,7 @@ a, button, [role='button'], input, textarea, select {
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l2-7 4 14 2-7h6"/></svg>
         Sondagens
       </a>
+      <a href="#" data-nav="groups">👥 <span>Grupos</span></a>
       <a href="#" data-nav="ai">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="7" width="16" height="12" rx="4"/><path d="M12 3v4M8 12h.01M16 12h.01"/></svg>
         PicalAi
@@ -808,7 +809,39 @@ a, button, [role='button'], input, textarea, select {
         <h3 style="margin-bottom:var(--space-3)">Sugestões para focar</h3>
         <div class="music-suggestions-grid" id="music-suggestions-grid"></div>
       </div>
+      <div style="margin-top:var(--space-8)">
+        <h3 style="margin-bottom:var(--space-3)">📁 As minhas playlists</h3>
+        <button class="btn small" id="create-playlist-btn" style="margin-bottom:var(--space-3)">+ Nova playlist</button>
+        <div id="playlists-box"></div>
+      </div>
     </section>
+
+    <!-- Grupos -->
+    <section class="view" id="view-groups">
+      <h2 class="page-title" style="margin-bottom:var(--space-6)">👥 Grupos</h2>
+      <button class="btn" id="new-group-btn" style="margin-bottom:var(--space-4)">Criar grupo</button>
+      <div class="groups-list" id="groups-list"></div>
+      <div id="group-detail" style="display:none"></div>
+    </section>
+
+<!-- Modal criar grupo -->
+<div class="modal-backdrop" id="new-group-modal" style="display:none">
+  <div class="modal" role="dialog" aria-modal="true">
+    <h2>👥 Criar grupo</h2>
+    <div class="field">
+      <label for="group-name">Nome</label>
+      <input type="text" id="group-name" placeholder="Ex: Fans de Música" />
+    </div>
+    <div class="field">
+      <label for="group-desc">Descrição</label>
+      <textarea id="group-desc" rows="2" placeholder="Sobre o que é este grupo?"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" id="cancel-group">Cancelar</button>
+      <button class="btn" id="publish-group">Criar</button>
+    </div>
+  </div>
+</div>
 
     <!-- PicalAi (IA) -->
     <section class="view" id="view-ai">
@@ -909,6 +942,10 @@ a, button, [role='button'], input, textarea, select {
     <button data-nav="polls">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l2-7 4 14 2-7h6"/></svg>
       Sond.
+    </button>
+    <button data-nav="groups">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      <span>Grupos</span>
     </button>
     <button data-nav="ai">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="7" width="16" height="12" rx="4"/><path d="M12 3v4M8 12h.01M16 12h.01"/></svg>
@@ -1111,6 +1148,7 @@ a, button, [role='button'], input, textarea, select {
 <script src="data.js"></script>
 <script src="progress.js"></script>
 <script src="games.js"></script>
+<script src="groups.js"></script>
 <script src="picalai.js"></script>
 <script src="music-player.js"></script>
 <script src="app.js"></script>

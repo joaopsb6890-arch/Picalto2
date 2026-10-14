@@ -269,13 +269,110 @@
     alertToast._t = setTimeout(() => t.classList.remove('show'), 2400);
   }
 
+  /* ---------- Playlists ---------- */
+  let playlists = [];
+  try { playlists = JSON.parse(PICALTA_STORAGE.getItem('picalta_playlists') || '[]'); } catch (e) {}
+  function savePlaylists() {
+    try { PICALTA_STORAGE.setItem('picalta_playlists', JSON.stringify(playlists)); } catch (e) {}
+  }
+  function createPlaylist(name) {
+    const id = 'pl_' + Date.now().toString(36);
+    playlists.push({ id, name: name || 'Playlist', songs: [] });
+    savePlaylists();
+    renderPlaylists();
+    return id;
+  }
+  function addToPlaylist(playlistId, videoId, title) {
+    const pl = playlists.find((p) => p.id === playlistId);
+    if (!pl) return;
+    pl.songs.push({ videoId, title: title || '—' });
+    savePlaylists();
+    renderPlaylists();
+  }
+  function renderPlaylists() {
+    const box = document.getElementById('playlists-box');
+    if (!box) return;
+    if (!playlists.length) {
+      box.innerHTML = '<div class="empty">Sem playlists. Cria uma!</div>';
+      return;
+    }
+    box.innerHTML = playlists.map((pl) => `
+      <div class="playlist-card">
+        <b>${escapeHtml_(pl.name)}</b>
+        <span>${pl.songs.length} música(s)</span>
+        <button class="btn small ghost" data-play-playlist="${escapeHtml_(pl.id)}">▶ Tocar</button>
+        <button class="btn small ghost" data-del-playlist="${escapeHtml_(pl.id)}">🗑</button>
+        <div class="playlist-songs">
+          ${pl.songs.map((s, i) => `
+            <div class="playlist-song">
+              <span>${i + 1}. ${escapeHtml_(s.title)}</span>
+              <button class="btn small ghost" data-play-pl-song="${escapeHtml_(pl.id)}" data-idx="${i}">▶</button>
+              <button class="btn small ghost" data-del-pl-song="${escapeHtml_(pl.id)}" data-idx="${i}">✕</button>
+            </div>`).join('')}
+        </div>
+      </div>`).join('');
+  }
+  document.addEventListener('click', (e) => {
+    const playPl = e.target.closest('[data-play-playlist]');
+    if (playPl) {
+      e.preventDefault();
+      const pl = playlists.find((p) => p.id === playPl.dataset.playPlaylist);
+      if (!pl || !pl.songs.length) { alertToast('Playlist vazia'); return; }
+      queue = pl.songs.map((s) => ({ videoId: s.videoId, title: s.title }));
+      renderQueue();
+      playSong(pl.songs[0].videoId, pl.songs[0].title);
+      return;
+    }
+    const delPl = e.target.closest('[data-del-playlist]');
+    if (delPl) {
+      e.preventDefault();
+      const id = delPl.dataset.delPlaylist;
+      playlists = playlists.filter((p) => p.id !== id);
+      savePlaylists();
+      renderPlaylists();
+      return;
+    }
+    const playSongBtn = e.target.closest('[data-play-pl-song]');
+    if (playSongBtn) {
+      e.preventDefault();
+      const pl = playlists.find((p) => p.id === playSongBtn.dataset.playPlSong);
+      if (!pl) return;
+      const s = pl.songs[parseInt(playSongBtn.dataset.idx)];
+      if (s) playSong(s.videoId, s.title);
+      return;
+    }
+    const delSongBtn = e.target.closest('[data-del-pl-song]');
+    if (delSongBtn) {
+      e.preventDefault();
+      const pl = playlists.find((p) => p.id === delSongBtn.dataset.delPlSong);
+      if (!pl) return;
+      pl.songs.splice(parseInt(delSongBtn.dataset.idx), 1);
+      savePlaylists();
+      renderPlaylists();
+      return;
+    }
+  });
+
   /* ---------- API ---------- */
   window.PICALTA_MUSIC = {
-    init() { initMusicUi(); },
+    init() { initMusicUi(); renderPlaylists(); },
     extractVideoId,
     playSong,
     pause,
     renderQueue,
     isFavorite,
+    createPlaylist,
+    addToPlaylist,
+    renderPlaylists,
   };
+})();
+
+/* Botão criar playlist (ligado no load do módulo) */
+(function () {
+  const btn = document.getElementById('create-playlist-btn');
+  if (btn) btn.addEventListener('click', () => {
+    const name = prompt('Nome da playlist?');
+    if (!name) return;
+    window.PICALTA_MUSIC.createPlaylist(name);
+  });
 })();

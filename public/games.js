@@ -577,6 +577,12 @@ function openGame(game) {
     case 'g2048': start2048Game(); break;
     case 'tictactoe': startTictactoeGame(); break;
     case 'typing': startTypingGame(); break;
+    case 'minesweeper': startMinesweeperGame(); break;
+    case 'breakout': startBreakoutGame(); break;
+    case 'mines': startMinesGame(); break;
+    case 'tetris': startTetrisGame(); break;
+    case 'pong': startPongGame(); break;
+    case 'connect4': startConnect4Game(); break;
   }
   // guarda melhor pontuação atual
   dbGetPlayer(state.me.uid).then((p) => {
@@ -625,4 +631,423 @@ function renderGamesHome() {
       return `<div class="game-score-row"><span>${i + 1}. ${escapeHtml(u.username || '?')} <em class="lvl">Lv ${lvl}</em></span><b>${p.xp || 0} XP</b></div>`;
     }).join('');
   });
+}
+
+/* ===== Minesweeper ===== */
+function startMinesweeperGame() {
+  const html = gameBoard('minesweeper', '💣 Minesweeper');
+  const { board, footer } = html;
+  const SIZE = 9, MINES = 10;
+  let grid = [], revealed = 0, over = false, flags = 0;
+  function init() {
+    grid = [];
+    for (let r = 0; r < SIZE; r++) {
+      grid.push([]);
+      for (let c = 0; c < SIZE; c++) grid[r].push({ mine: false, revealed: false, flagged: false, n: 0 });
+    }
+    let placed = 0;
+    while (placed < MINES) {
+      const r = Math.floor(Math.random() * SIZE), c = Math.floor(Math.random() * SIZE);
+      if (!grid[r][c].mine) { grid[r][c].mine = true; placed++; }
+    }
+    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
+      let n = 0;
+      for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+        const nr = r + dr, nc = c + dc;
+        if (nr >= 0 && nr < SIZE && nc >= 0 && nc < SIZE && grid[nr][nc].mine) n++;
+      }
+      grid[r][c].n = n;
+    }
+    revealed = 0; over = false; flags = 0;
+    render();
+  }
+  function reveal(r, c) {
+    if (over || grid[r][c].revealed || grid[r][c].flagged) return;
+    grid[r][c].revealed = true;
+    revealed++;
+    if (grid[r][c].mine) {
+      over = true;
+      footer.textContent = '💥 Perdeu! Tenta outra vez.';
+      submitGameScore('minesweeper', Math.max(0, revealed - 1));
+      revealAll();
+      render();
+      return;
+    }
+    if (grid[r][c].n === 0) {
+      for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+        const nr = r + dr, nc = c + dc;
+        if (nr >= 0 && nr < SIZE && nc >= 0 && nc < SIZE) reveal(nr, nc);
+      }
+    }
+    if (revealed >= SIZE * SIZE - MINES) {
+      over = true;
+      footer.textContent = '🎉 Ganhaste! +XP';
+      submitGameScore('minesweeper', SIZE * SIZE - MINES);
+      unlockGameAchievement('minesweeper_win');
+    }
+    render();
+  }
+  function revealAll() {
+    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (grid[r][c].mine) grid[r][c].revealed = true;
+  }
+  function render() {
+    board.innerHTML = '';
+    const tbl = document.createElement('table');
+    tbl.className = 'minesweeper-table';
+    for (let r = 0; r < SIZE; r++) {
+      const tr = document.createElement('tr');
+      for (let c = 0; c < SIZE; c++) {
+        const td = document.createElement('td');
+        const cell = grid[r][c];
+        td.className = 'ms-cell' + (cell.revealed ? ' revealed' : '');
+        td.textContent = cell.revealed ? (cell.mine ? '💣' : (cell.n || '')) : (cell.flagged ? '🚩' : '');
+        td.onclick = () => reveal(r, c);
+        td.oncontextmenu = (e) => {
+          e.preventDefault();
+          if (over || cell.revealed) return;
+          cell.flagged = !cell.flagged;
+          flags += cell.flagged ? 1 : -1;
+          render();
+        };
+        tr.appendChild(td);
+      }
+      tbl.appendChild(tr);
+    }
+    board.appendChild(tbl);
+  }
+  init();
+}
+
+/* ===== Breakout ===== */
+function startBreakoutGame() {
+  const html = gameBoard('breakout', '🧱 Breakout');
+  const { board, footer } = html;
+  const W = 400, H = 500, PADDLE_W = 80, BALL_R = 8;
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  canvas.className = 'game-canvas';
+  board.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+  let paddleX = W / 2, ballX = W / 2, ballY = H - 40;
+  let dx = 3, dy = -3, score = 0, lives = 3, running = true;
+  let bricks = [];
+  const BRICK_ROWS = 5, BRICK_COLS = 8, BRICK_W = 46, BRICK_H = 20, BRICK_PAD = 4, BRICK_TOP = 60;
+  for (let r = 0; r < BRICK_ROWS; r++) for (let c = 0; c < BRICK_COLS; c++) bricks.push({ x: 10 + c * (BRICK_W + BRICK_PAD), y: BRICK_TOP + r * (BRICK_H + BRICK_PAD), alive: true });
+  canvas.onmousemove = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    paddleX = Math.max(PADDLE_W / 2, Math.min(W - PADDLE_W / 2, e.clientX - rect.left));
+  };
+  canvas.ontouchmove = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    paddleX = Math.max(PADDLE_W / 2, Math.min(W - PADDLE_W / 2, e.touches[0].clientX - rect.left));
+  };
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--color-primary') || '#672ea4';
+    for (const b of bricks) if (b.alive) ctx.fillRect(b.x, b.y, BRICK_W, BRICK_H);
+    ctx.fillRect(paddleX - PADDLE_W / 2, H - 20, PADDLE_W, 12);
+    ctx.beginPath();
+    ctx.arc(ballX, ballY, BALL_R, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  function step() {
+    if (!running) return;
+    ballX += dx; ballY += dy;
+    if (ballX < BALL_R || ballX > W - BALL_R) dx = -dx;
+    if (ballY < BALL_R) dy = -dy;
+    if (ballY > H - 20 && ballY < H - 8 && Math.abs(ballX - paddleX) < PADDLE_W / 2) {
+      dy = -Math.abs(dy);
+      const off = (ballX - paddleX) / (PADDLE_W / 2);
+      dx = off * 4;
+    }
+    if (ballY > H) {
+      lives--;
+      if (lives <= 0) {
+        running = false;
+        footer.textContent = `Fim! Pontuação: ${score}`;
+        submitGameScore('breakout', score);
+        return;
+      }
+      ballX = W / 2; ballY = H - 40; dx = 3; dy = -3;
+    }
+    for (const b of bricks) {
+      if (b.alive && ballX > b.x - BALL_R && ballX < b.x + BRICK_W + BALL_R && ballY > b.y - BALL_R && ballY < b.y + BRICK_H + BALL_R) {
+        b.alive = false;
+        score += 10;
+        dy = -dy;
+        if (bricks.every((x) => !x.alive)) {
+          running = false;
+          footer.textContent = `🎉 Ganhaste! Pontuação: ${score}`;
+          submitGameScore('breakout', score);
+          return;
+        }
+      }
+    }
+    draw();
+    requestAnimationFrame(step);
+  }
+  draw();
+  requestAnimationFrame(step);
+}
+
+/* ===== Campo Minado ===== */
+function startMinesGame() {
+  // Alias simples para o Minesweeper com outra difficulty
+  startMinesweeperGame();
+}
+
+/* ===== Tetris ===== */
+function startTetrisGame() {
+  const html = gameBoard('tetris', '🧩 Tetris');
+  const { board, footer } = html;
+  const W = 300, H = 600, CELL = 30;
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  canvas.className = 'game-canvas';
+  board.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+  const COLS = W / CELL, ROWS = H / CELL;
+  let grid = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+  const SHAPES = [
+    [[1,1,1,1]], // I
+    [[1,1],[1,1]], // O
+    [[0,1,0],[1,1,1]], // T
+    [[1,0,0],[1,1,1]], // L
+    [[0,0,1],[1,1,1]], // J
+    [[0,1,1],[1,1,0]], // S
+    [[1,1,0],[0,1,1]], // Z
+  ];
+  const COLORS = ['#00bcd4','#ffeb3b','#9c27b0','#ff5722','#3f51b5','#4caf50','#f44336'];
+  let cur = null, curColor = 0, curX = 0, curY = 0, score = 0, over = false;
+  function newPiece() {
+    const idx = Math.floor(Math.random() * SHAPES.length);
+    cur = SHAPES[idx];
+    curColor = idx + 1;
+    curX = Math.floor((COLS - cur[0].length) / 2);
+    curY = 0;
+    if (collide(curX, curY, cur)) {
+      over = true;
+      footer.textContent = `Fim! Pontuação: ${score}`;
+      submitGameScore('tetris', score);
+    }
+  }
+  function collide(x, y, shape) {
+    for (let r = 0; r < shape.length; r++) for (let c = 0; c < shape[r].length; c++) {
+      if (shape[r][c]) {
+        const nx = x + c, ny = y + r;
+        if (nx < 0 || nx >= COLS || ny >= ROWS) return true;
+        if (ny >= 0 && grid[ny][nx]) return true;
+      }
+    }
+    return false;
+  }
+  function merge() {
+    for (let r = 0; r < cur.length; r++) for (let c = 0; c < cur[r].length; c++) {
+      if (cur[r][c]) {
+        const ny = curY + r;
+        if (ny >= 0) grid[ny][curX + c] = curColor;
+      }
+    }
+  }
+  function clearLines() {
+    let cleared = 0;
+    for (let r = ROWS - 1; r >= 0; r--) {
+      if (grid[r].every((x) => x)) {
+        grid.splice(r, 1);
+        grid.unshift(Array(COLS).fill(0));
+        cleared++;
+        r++;
+      }
+    }
+    if (cleared) score += cleared * 100;
+  }
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    ctx.strokeStyle = 'rgba(128,128,128,0.2)';
+    for (let i = 0; i <= COLS; i++) { ctx.beginPath(); ctx.moveTo(i * CELL, 0); ctx.lineTo(i * CELL, H); ctx.stroke(); }
+    for (let j = 0; j <= ROWS; j++) { ctx.beginPath(); ctx.moveTo(0, j * CELL); ctx.lineTo(W, j * CELL); ctx.stroke(); }
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+      if (grid[r][c]) {
+        ctx.fillStyle = COLORS[grid[r][c] - 1] || '#888';
+        ctx.fillRect(c * CELL + 1, r * CELL + 1, CELL - 2, CELL - 2);
+      }
+    }
+    if (cur && !over) {
+      ctx.fillStyle = COLORS[curColor - 1];
+      for (let r = 0; r < cur.length; r++) for (let c = 0; c < cur[r].length; c++) {
+        if (cur[r][c]) ctx.fillRect((curX + c) * CELL + 1, (curY + r) * CELL + 1, CELL - 2, CELL - 2);
+      }
+    }
+  }
+  let dropCounter = 0, dropInterval = 500, lastTime = 0;
+  function loop(ts) {
+    if (over) return;
+    const delta = ts - lastTime;
+    lastTime = ts;
+    dropCounter += delta;
+    if (dropCounter > dropInterval) {
+      dropCounter = 0;
+      if (!collide(curX, curY + 1, cur)) curY++;
+      else { merge(); clearLines(); newPiece(); }
+    }
+    draw();
+    requestAnimationFrame(loop);
+  }
+  document.addEventListener('keydown', (e) => {
+    if (over || state.currentGame !== 'tetris') return;
+    if (e.key === 'ArrowLeft' && !collide(curX - 1, curY, cur)) curX--;
+    else if (e.key === 'ArrowRight' && !collide(curX + 1, curY, cur)) curX++;
+    else if (e.key === 'ArrowDown') { if (!collide(curX, curY + 1, cur)) curY++; }
+    else if (e.key === 'ArrowUp') {
+      // rotate
+      const rotated = cur[0].map((_, i) => cur.map((row) => row[i]).reverse());
+      if (!collide(curX, curY, rotated)) cur = rotated;
+    }
+    draw();
+  });
+  newPiece();
+  requestAnimationFrame(loop);
+}
+
+/* ===== Pong ===== */
+function startPongGame() {
+  const html = gameBoard('pong', '🏓 Pong');
+  const { board, footer } = html;
+  const W = 500, H = 300;
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  canvas.className = 'game-canvas';
+  board.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+  const PW = 10, PH = 60, BALL_R = 6;
+  let p1Y = H / 2, p2Y = H / 2, bx = W / 2, by = H / 2;
+  let vx = 3, vy = 2, p1Score = 0, p2Score = 0, running = true;
+  canvas.onmousemove = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    p1Y = Math.max(PH / 2, Math.min(H - PH / 2, e.clientY - rect.top));
+  };
+  canvas.ontouchmove = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    p1Y = Math.max(PH / 2, Math.min(H - PH / 2, e.touches[0].clientY - rect.top));
+  };
+  function step() {
+    if (!running) return;
+    bx += vx; by += vy;
+    if (by < BALL_R || by > H - BALL_R) vy = -vy;
+    if (bx < 20 + PW && Math.abs(by - p1Y) < PH / 2) { vx = Math.abs(vx); vy += (by - p1Y) / 10; }
+    if (bx > W - 20 - PW && Math.abs(by - p2Y) < PH / 2) { vx = -Math.abs(vx); vy += (by - p2Y) / 10; }
+    // IA simples
+    p2Y += (by - p2Y) * 0.08;
+    p2Y = Math.max(PH / 2, Math.min(H - PH / 2, p2Y));
+    if (bx < 0) { p2Score++; reset(); }
+    if (bx > W) { p1Score++; reset(); }
+    draw();
+    requestAnimationFrame(step);
+  }
+  function reset() {
+    bx = W / 2; by = H / 2; vx = -vx; vy = (Math.random() - 0.5) * 4;
+    if (p1Score >= 5 || p2Score >= 5) {
+      running = false;
+      footer.textContent = `Fim! ${p1Score} - ${p2Score}`;
+      submitGameScore('pong', p1Score);
+      return;
+    }
+  }
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--color-primary') || '#672ea4';
+    ctx.fillRect(10, p1Y - PH / 2, PW, PH);
+    ctx.fillRect(W - 10 - PW, p2Y - PH / 2, PW, PH);
+    ctx.beginPath(); ctx.arc(bx, by, BALL_R, 0, Math.PI * 2); ctx.fill();
+    ctx.font = '18px sans-serif'; ctx.fillStyle = '#888';
+    ctx.fillText(String(p1Score), 30, 30);
+    ctx.fillText(String(p2Score), W - 40, 30);
+  }
+  requestAnimationFrame(step);
+}
+
+/* ===== 4 em Linha ===== */
+function startConnect4Game() {
+  const html = gameBoard('connect4', '🔴 4 em Linha');
+  const { board, footer } = html;
+  const COLS = 7, ROWS = 6;
+  let grid = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+  let turn = 1, over = false;
+  function drop(col) {
+    if (over) return;
+    for (let r = ROWS - 1; r >= 0; r--) {
+      if (!grid[r][col]) {
+        grid[r][col] = turn;
+        if (checkWin(r, col)) {
+          over = true;
+          footer.textContent = turn === 1 ? '🎉 Ganhaste!' : 'A IA ganhou!';
+          submitGameScore('connect4', turn === 1 ? 100 : 0);
+          render();
+          return;
+        }
+        turn = turn === 1 ? 2 : 1;
+        if (turn === 2) setTimeout(aiMove, 400);
+        render();
+        return;
+      }
+    }
+  }
+  function checkWin(r, c) {
+    const dirs = [[0,1],[1,0],[1,1],[1,-1]];
+    for (const [dr, dc] of dirs) {
+      let count = 1;
+      for (let d = 1; d <= 3; d++) {
+        const nr = r + dr * d, nc = c + dc * d;
+        if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS || grid[nr][nc] !== grid[r][c]) break;
+        count++;
+      }
+      for (let d = 1; d <= 3; d++) {
+        const nr = r - dr * d, nc = c - dc * d;
+        if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS || grid[nr][nc] !== grid[r][c]) break;
+        count++;
+      }
+      if (count >= 4) return true;
+    }
+    return false;
+  }
+  function aiMove() {
+    const valid = [];
+    for (let c = 0; c < COLS; c++) if (!grid[0][c]) valid.push(c);
+    if (!valid.length) return;
+    const col = valid[Math.floor(Math.random() * valid.length)];
+    for (let r = ROWS - 1; r >= 0; r--) {
+      if (!grid[r][col]) {
+        grid[r][col] = 2;
+        if (checkWin(r, col)) {
+          over = true;
+          footer.textContent = 'A IA ganhou!';
+          submitGameScore('connect4', 0);
+          render();
+          return;
+        }
+        turn = 1;
+        render();
+        return;
+      }
+    }
+  }
+  function render() {
+    board.innerHTML = '';
+    const tbl = document.createElement('table');
+    tbl.className = 'connect4-table';
+    for (let r = 0; r < ROWS; r++) {
+      const tr = document.createElement('tr');
+      for (let c = 0; c < COLS; c++) {
+        const td = document.createElement('td');
+        td.className = 'c4-cell';
+        if (grid[r][c] === 1) td.classList.add('p1');
+        else if (grid[r][c] === 2) td.classList.add('p2');
+        td.onclick = () => drop(c);
+        tr.appendChild(td);
+      }
+      tbl.appendChild(tr);
+    }
+    board.appendChild(tbl);
+  }
+  render();
 }

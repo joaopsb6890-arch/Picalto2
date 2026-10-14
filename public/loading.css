@@ -126,3 +126,96 @@
 }
 .more-sheet.open { transform: translateY(0); }
 .more-sheet-backdrop { transition: opacity 180ms ease; }
+
+/* ---------- Grupos ---------- */
+.group-card {
+  background: var(--color-surface);
+  border:1px solid var(--color-divider);
+  border-radius: var(--radius-xl);
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+  box-shadow: var(--shadow-sm);
+}
+.group-head { display:flex; align-items:flex-start; gap:var(--space-3); flex-wrap:wrap; }
+.group-avatar {
+  width:44px; height:44px; border-radius:var(--radius-full);
+  background:var(--color-primary); color:#fff;
+  display:flex; align-items:center; justify-content:center;
+  font-weight:700; font-size:var(--text-lg);
+}
+.group-meta { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.group-meta span { color:var(--color-text-faint); font-size:var(--text-xs); }
+.group-meta b { font-size:var(--text-base); }
+.group-actions { display:flex; gap:var(--space-2); }
+.group-count { color:var(--color-text-faint); font-size:var(--text-xs); }
+.badge {
+  display:inline-block; padding:2px 8px; border-radius:var(--radius-full);
+  background:var(--color-bg-subtle, rgba(0,0,0,0.06)); font-size:var(--text-xs);
+  color:var(--color-text-faint);
+}
+.group-detail-head { margin-bottom:var(--space-6); }
+.group-detail-head h3 { margin:var(--space-3) 0 var(--space-1); }
+.group-detail-head p { color:var(--color-text-faint); margin-bottom:var(--space-3); }
+.group-detail-actions { display:flex; gap:var(--space-2); }
+.group-members-list { margin-bottom:var(--space-6); }
+.group-members-list h4, .group-posts h4 { margin-bottom:var(--space-3); }
+.group-member { display:flex; align-items:center; gap:var(--space-2); margin-bottom:var(--space-2); }
+.group-member .avatar, .group-member .avatar-fallback { width:28px; height:28px; font-size:var(--text-xs); }
+.group-post {
+  background:var(--color-surface);
+  border:1px solid var(--color-divider);
+  border-radius:var(--radius-xl);
+  padding:var(--space-3);
+  margin-bottom:var(--space-3);
+}
+.group-post .meta { display:flex; align-items:center; gap:var(--space-2); margin-bottom:var(--space-2); }
+.group-post p { margin-bottom:var(--space-2); word-break:break-word; }
+.group-post-form { display:flex; gap:var(--space-2); align-items:flex-end; }
+.group-post-form textarea {
+  flex:1; min-height:60px; resize:vertical;
+  background:var(--color-input-bg, transparent);
+  border:1px solid var(--color-divider); border-radius:var(--radius-md);
+  padding:var(--space-2); color:inherit; font:inherit;
+}
+
+/* ---------- Novos jogos: Minesweeper / Connect4 ---------- */
+.minesweeper-table, .connect4-table {
+  border-collapse: separate;
+  border-spacing: 2px;
+  margin: 0 auto;
+}
+.ms-cell {
+  width: 34px; height: 34px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-sm);
+  text-align: center; vertical-align: middle;
+  font-weight: 700; cursor: pointer;
+  user-select: none;
+}
+.ms-cell.revealed { background: rgba(128,128,128,0.1); cursor: default; }
+.c4-cell {
+  width: 42px; height: 42px;
+  background: rgba(128,128,128,0.15);
+  border-radius: 50%;
+  cursor: pointer;
+}
+.c4-cell.p1 { background: #e74c3c; }
+.c4-cell.p2 { background: #f1c40f; }
+
+/* ---------- Playlists ---------- */
+.playlist-card {
+  background:var(--color-surface);
+  border:1px solid var(--color-divider);
+  border-radius:var(--radius-xl);
+  padding:var(--space-3);
+  margin-bottom:var(--space-3);
+  display:flex; flex-direction:column; gap:var(--space-2);
+}
+.playlist-card b { font-size:var(--text-base); }
+.playlist-song {
+  display:flex; align-items:center; gap:var(--space-2);
+  font-size:var(--text-sm); color:var(--color-text-faint);
+  padding:2px 0;
+}
+.playlist-song span { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }

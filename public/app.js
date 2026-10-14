@@ -204,8 +204,9 @@ function enterApp() {
   renderMusicView();
   renderPolls();
   renderSettings();
-  // PicalAi + Music player (só depois do login)
+  // PicalAi + Groups + Music player (só depois do login)
   if (window.PICALAI) window.PICALAI.init();
+  if (window.PICALTA_GROUPS) window.PICALTA_GROUPS.init();
   if (window.PICALTA_MUSIC) window.PICALTA_MUSIC.init();
   // aviso se Cloudinary não estiver configurado
   if (!cloudinaryConfigured()) {
@@ -453,6 +454,7 @@ document.addEventListener('click', (e) => {
     if (v === 'search') $('#search-input') && $('#search-input').focus();
     if (v === 'games') renderGamesHome();
     if (v === 'music') renderMusicView();
+    if (v === 'groups' && window.PICALTA_GROUPS) window.PICALTA_GROUPS.init();
     if (v === 'polls') renderPolls();
     if (v === 'settings') renderSettings();
     if (v === 'ai') window.PICALAI && window.PICALAI.refreshStatus && window.PICALAI.refreshStatus();
@@ -738,9 +740,50 @@ $('#publish-story').addEventListener('click', async () => {
 function openStory(uid) {
   const stories = (state.stories || []).filter((s) => s.uid === uid);
   if (!stories.length) return;
-  const s = stories[0];
+  let idx = 0;
+  const s = stories[idx];
   $('#story-img').src = s.imageUrl;
   $('#story-viewer').style.display = 'grid';
+  let timer = null;
+  function next() {
+    idx = (idx + 1) % stories.length;
+    $('#story-img').src = stories[idx].imageUrl;
+    restart();
+  }
+  function prev() {
+    idx = (idx - 1 + stories.length) % stories.length;
+    $('#story-img').src = stories[idx].imageUrl;
+    restart();
+  }
+  function restart() {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(next, 5000);
+  }
+  function close_() {
+    if (timer) clearTimeout(timer);
+    $('#story-viewer').style.display = 'none';
+    document.removeEventListener('keydown', keys);
+  }
+  function keys(e) {
+    if (e.key === 'Escape') close_();
+    else if (e.key === 'ArrowRight') next();
+    else if (e.key === 'ArrowLeft') prev();
+  }
+  document.addEventListener('keydown', keys);
+  const viewer = $('#story-viewer');
+  // limpa listeners antigos para evitar múltiplas navegações
+  const old = viewer.querySelector('#story-next-btn, #story-prev-btn');
+  if (old) old.remove();
+  const controls = document.createElement('div');
+  controls.style.cssText = 'position:absolute;bottom:var(--space-4);left:0;right:0;display:flex;justify-content:space-between;padding:0 var(--space-6);';
+  controls.innerHTML = `
+    <button class="btn ghost small" id="story-prev-btn">←</button>
+    <button class="btn ghost small" id="story-next-btn">→</button>
+  `;
+  viewer.appendChild(controls);
+  $('#story-next-btn').onclick = next;
+  $('#story-prev-btn').onclick = prev;
+  restart();
 }
 $('#close-story').addEventListener('click', () => { $('#story-viewer').style.display = 'none'; });
 $('#story-viewer').addEventListener('click', (e) => { if (e.target === $('#story-viewer')) $('#story-viewer').style.display = 'none'; });
