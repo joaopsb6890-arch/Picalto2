@@ -1,10 +1,19 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "outputDirectory": "public",
   "functions": {
-    "api/picalai.js": { "maxDuration": 30 }
+    "api/picalai.js": {
+      "maxDuration": 30
+    }
   },
   "rewrites": [
-    { "source": "/api/picalai/status", "destination": "/api/picalai" },
-    { "source": "/api/picalai/chat", "destination": "/api/picalai" }
+    {
+      "source": "/api/picalai/status",
+      "destination": "/api/picalai"
+    },
+    {
+      "source": "/api/picalai/chat",
+      "destination": "/api/picalai"
+    }
   ]
 }
