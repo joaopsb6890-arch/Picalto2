@@ -35,11 +35,9 @@ async function dbAddComment(postId, uid, text) {
 }
 /* escuta em tempo real de posts (ordem por createdAt desc) */
 function dbWatchPosts(callback) {
-  return (async () => {
-    const { collection, onSnapshot, orderBy, query, limit } = __fsFns;
-    const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'), limit(60));
-    return onSnapshot(q, callback);
-  })();
+  const { collection, onSnapshot, orderBy, query, limit } = __fsFns;
+  const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'), limit(60));
+  return onSnapshot(q, callback);
 }
 async function dbGetPost(postId) {
   const { doc, getDoc } = __fsFns;
@@ -47,11 +45,9 @@ async function dbGetPost(postId) {
   return snap.exists() ? { id: snap.id, ...snap.data() } : null;
 }
 function dbWatchComments(postId, callback) {
-  return (async () => {
-    const { collection, onSnapshot, orderBy, query } = __fsFns;
-    const q = query(collection(db, 'posts', postId, 'comments'), orderBy('createdAt', 'asc'));
-    return onSnapshot(q, callback);
-  })();
+  const { collection, onSnapshot, orderBy, query } = __fsFns;
+  const q = query(collection(db, 'posts', postId, 'comments'), orderBy('createdAt', 'asc'));
+  return onSnapshot(q, callback);
 }
 
 /* ---------- seguir ---------- */
@@ -75,11 +71,9 @@ async function dbIsFollowing(uid, targetUid) {
   return snap.exists();
 }
 function dbWatchFollowers(targetUid, callback) {
-  return (async () => {
-    const { collection, onSnapshot, query, where } = __fsFns;
-    const q = query(collection(db, 'follows'), where('following', '==', targetUid));
-    return onSnapshot(q, callback);
-  })();
+  const { collection, onSnapshot, query, where } = __fsFns;
+  const q = query(collection(db, 'follows'), where('following', '==', targetUid));
+  return onSnapshot(q, callback);
 }
 async function dbListFollowing(uid) {
   const { collection, getDocs, query, where } = __fsFns;
@@ -117,18 +111,14 @@ async function dbGetOrCreateChat(uidA, uidB) {
   return ref.id;
 }
 function dbWatchChats(uid, callback) {
-  return (async () => {
-    const { collection, onSnapshot, query, where } = __fsFns;
-    const q = query(collection(db, 'chats'), where('participants', 'array-contains', uid));
-    return onSnapshot(q, callback);
-  })();
+  const { collection, onSnapshot, query, where } = __fsFns;
+  const q = query(collection(db, 'chats'), where('participants', 'array-contains', uid));
+  return onSnapshot(q, callback);
 }
 function dbWatchMessages(chatId, callback) {
-  return (async () => {
-    const { collection, onSnapshot, orderBy, query, limit } = __fsFns;
-    const q = query(collection(db, 'chats', chatId, 'messages'), orderBy('createdAt', 'asc'), limit(200));
-    return onSnapshot(q, callback);
-  })();
+  const { collection, onSnapshot, orderBy, query, limit } = __fsFns;
+  const q = query(collection(db, 'chats', chatId, 'messages'), orderBy('createdAt', 'asc'), limit(200));
+  return onSnapshot(q, callback);
 }
 async function dbSendMessage(chatId, uid, text) {
   const { addDoc, collection, serverTimestamp } = __fsFns;
@@ -205,11 +195,9 @@ async function dbAddStory(uid, imageUrl) {
   });
 }
 function dbWatchStories(callback) {
-  return (async () => {
-    const { collection, onSnapshot, orderBy, query, limit } = __fsFns;
-    const q = query(collection(db, 'stories'), orderBy('createdAt', 'desc'), limit(50));
-    return onSnapshot(q, callback);
-  })();
+  const { collection, onSnapshot, orderBy, query, limit } = __fsFns;
+  const q = query(collection(db, 'stories'), orderBy('createdAt', 'desc'), limit(50));
+  return onSnapshot(q, callback);
 }
 
 /* ---------- XP / níveis / conquistas ---------- */
@@ -234,11 +222,9 @@ function dbWatchPlayer(uid, callback) {
 }
 /* top global por XP */
 function dbWatchLeaderboard(callback) {
-  return (async () => {
-    const { collection, onSnapshot, query, orderBy, limit } = __fsFns;
-    const q = query(collection(db, 'players'), orderBy('xp', 'desc'), limit(50));
-    return onSnapshot(q, callback);
-  })();
+  const { collection, onSnapshot, query, orderBy, limit } = __fsFns;
+  const q = query(collection(db, 'players'), orderBy('xp', 'desc'), limit(50));
+  return onSnapshot(q, callback);
 }
 
 /* ---------- jogos ---------- */
@@ -280,11 +266,9 @@ function dbWatchGameScores(game, callback) {
   return onSnapshot(q, callback);
 }
 function dbWatchMyScores(uid, callback) {
-  return (async () => {
-    const { collection, onSnapshot, query, where, orderBy, limit } = __fsFns;
-    const q = query(collection(db, 'gameScores'), where('uid', '==', uid), orderBy('createdAt', 'desc'), limit(50));
-    return onSnapshot(q, callback);
-  })();
+  const { collection, onSnapshot, query, where, orderBy, limit } = __fsFns;
+  const q = query(collection(db, 'gameScores'), where('uid', '==', uid), orderBy('createdAt', 'desc'), limit(50));
+  return onSnapshot(q, callback);
 }
 
 /* ---------- conquistas ---------- */
@@ -310,11 +294,9 @@ async function dbToggleFavorite(uid, postId, currently) {
   }
 }
 function dbWatchFavorites(uid, callback) {
-  return (async () => {
-    const { collection, onSnapshot, query, where } = __fsFns;
-    const q = query(collection(db, 'favorites'), where('uid', '==', uid));
-    return onSnapshot(q, callback);
-  })();
+  const { collection, onSnapshot, query, where } = __fsFns;
+  const q = query(collection(db, 'favorites'), where('uid', '==', uid));
+  return onSnapshot(q, callback);
 }
 
 /* ---------- posts de texto (sem foto) + hashtags ---------- */
@@ -345,11 +327,9 @@ async function dbCreatePhotoPost(uid, imageUrl, caption) {
   });
 }
 function dbWatchHashtag(tag, callback) {
-  return (async () => {
-    const { collection, onSnapshot, query, where, orderBy, limit } = __fsFns;
-    const q = query(collection(db, 'posts'), where('hashtags', 'array-contains', tag), orderBy('createdAt', 'desc'), limit(30));
-    return onSnapshot(q, callback);
-  })();
+  const { collection, onSnapshot, query, where, orderBy, limit } = __fsFns;
+  const q = query(collection(db, 'posts'), where('hashtags', 'array-contains', tag), orderBy('createdAt', 'desc'), limit(30));
+  return onSnapshot(q, callback);
 }
 
 /* ---------- mood / status ---------- */
@@ -418,10 +398,9 @@ async function dbShareSong(uid, videoId, title) {
     uid, videoId, title: title || '', createdAt: serverTimestamp(),
   });
 }
+/* devolve diretamente a função de cancelamento (onSnapshot é síncrono) */
 function dbWatchSongs(callback) {
-  return (async () => {
-    const { collection, onSnapshot, query, orderBy, limit } = __fsFns;
-    const q = query(collection(db, 'songs'), orderBy('createdAt', 'desc'), limit(30));
-    return onSnapshot(q, callback);
-  })();
+  const { collection, onSnapshot, query, orderBy, limit } = __fsFns;
+  const q = query(collection(db, 'songs'), orderBy('createdAt', 'desc'), limit(30));
+  return onSnapshot(q, callback);
 }

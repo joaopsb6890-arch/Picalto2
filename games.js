@@ -28,7 +28,13 @@ function gameBoard(id, title) {
     <div class="game-instructions" id="game-instructions"></div>
     <div class="game-leaderboard" id="game-leaderboard"></div>
   `;
-  return box;
+  // Devolve os nós internos: `board` para os jogos adicionarem o canvas/grelha,
+  // `footer` para o texto de estado/resultado. Os jogos antigos ignoram o retorno.
+  return {
+    wrap: box,
+    board: box.querySelector('#game-area'),
+    footer: box.querySelector('#game-instructions'),
+  };
 }
 function renderGameLeaderboard(game) {
   // dbWatchGameScores devolve a função de cancelamento diretamente (sem trabalho
@@ -788,6 +794,8 @@ function startBreakoutGame() {
   }
   draw();
   requestAnimationFrame(step);
+  // Para o loop quando o jogador sai da vista de jogos
+  registerGameCleanup(() => { running = false; });
 }
 
 /* ===== Campo Minado ===== */
@@ -880,8 +888,9 @@ function startTetrisGame() {
     }
   }
   let dropCounter = 0, dropInterval = 500, lastTime = 0;
+  let running = true;
   function loop(ts) {
-    if (over) return;
+    if (over || !running) return;
     const delta = ts - lastTime;
     lastTime = ts;
     dropCounter += delta;
@@ -893,7 +902,7 @@ function startTetrisGame() {
     draw();
     requestAnimationFrame(loop);
   }
-  document.addEventListener('keydown', (e) => {
+  const tetrisKeyHandler = (e) => {
     if (over || state.currentGame !== 'tetris') return;
     if (e.key === 'ArrowLeft' && !collide(curX - 1, curY, cur)) curX--;
     else if (e.key === 'ArrowRight' && !collide(curX + 1, curY, cur)) curX++;
@@ -904,9 +913,15 @@ function startTetrisGame() {
       if (!collide(curX, curY, rotated)) cur = rotated;
     }
     draw();
-  });
+  };
+  document.addEventListener('keydown', tetrisKeyHandler);
   newPiece();
   requestAnimationFrame(loop);
+  // Para o loop e remove o listener quando o jogador sai
+  registerGameCleanup(() => {
+    running = false;
+    document.removeEventListener('keydown', tetrisKeyHandler);
+  });
 }
 
 /* ===== Pong ===== */
@@ -944,6 +959,8 @@ function startPongGame() {
     draw();
     requestAnimationFrame(step);
   }
+  // Para o loop quando o jogador sai da vista de jogos
+  registerGameCleanup(() => { running = false; });
   function reset() {
     bx = W / 2; by = H / 2; vx = -vx; vy = (Math.random() - 0.5) * 4;
     if (p1Score >= 5 || p2Score >= 5) {

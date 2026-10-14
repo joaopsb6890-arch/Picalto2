@@ -10,10 +10,28 @@
 'use strict';
 
 const AI_TIMEOUT_MS = 25000; // < maxDuration (30s) do vercel.json
+const AUTH_TIMEOUT_MS = 4000;  // orçamento de tempo para verificar o token Firebase
 const AI_MAX_MESSAGES = 24;
 const AI_MAX_USER_TOKENS = 1200;
 const RATE_WINDOW_MS = 60_000;
 const RATE_MAX = 15;
+
+function fetchWithTimeout(url, opts, timeoutMs) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  // O AbortController mantém-se ativo durante o fetch E a leitura do corpo/json.
+  // O temporizador só é limpo quando a promessa externa (corpo incluído) termina.
+  return fetch(url, { ...opts, signal: controller.signal }).then(async (r) => {
+    // clona o corpo para que o abort ainda o alcance se demorar a chegar
+    const clone = r.clone();
+    const text = await clone.text(); // lê o corpo sob o mesmo sinal
+    return new Response(text, {
+      status: r.status,
+      statusText: r.statusText,
+      headers: Object.fromEntries(r.headers.entries()),
+    });
+  }).finally(() => clearTimeout(timer));
+}
 
 function json(res, status, obj) {
   res.status(status).json(obj);
@@ -27,17 +45,22 @@ async function verifyFirebaseToken(token) {
   if (!token) return null;
   try {
     const key = process.env.FIREBASE_API_KEY || 'AIzaSyDtSLwYJDiL-1AOnwLDh-jxOQzG1xsDsHs';
-    const r = await fetch('https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=' + key, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idToken: token }),
-    });
+    const r = await fetchWithTimeout(
+      'https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=' + key,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken: token }),
+      },
+      AUTH_TIMEOUT_MS
+    );
     if (!r.ok) return null;
     const j = await r.json();
     const u = j.users && j.users[0];
     if (!u) return null;
     return { uid: u.localId, email: u.email || null, name: u.displayName || null };
   } catch (e) {
+    // abort por timeout ou falha de rede — não faz sentido a IA esperar mais
     return null;
   }
 }
